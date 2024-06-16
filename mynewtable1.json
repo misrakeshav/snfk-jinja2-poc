@@ -1,0 +1,10 @@
+{
+  "database": "JINJA2TEST_DB",
+  "schema": "MYSCHEMA1",
+  "table_name": "mynewtable1",
+  "columns": [
+    {"name": "column1", "type": "VARCHAR(255)"},
+    {"name": "column2", "type": "INT"},
+    {"name": "column3", "type": "DATE"}
+  ]
+ }
