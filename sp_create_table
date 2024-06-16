@@ -1,0 +1,62 @@
+--create python procedure
+CREATE OR REPLACE PROCEDURE generate_create_table_script(json_file_name STRING)
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+PACKAGES = ('Jinja2', 'snowflake-snowpark-python')
+HANDLER = 'main'
+AS
+$$
+import json
+from jinja2 import Template
+from snowflake.snowpark import Session
+
+def main(session: Session, json_file_name: str)
+    # Fetch the JSON file content from the stage
+    json_stage_query = f"SELECT $1 FROM @JSON_STAGE/{json_file_name}"
+    json_result = session.sql(json_stage_query).collect()[0][0]
+    
+    # Debug: Inspect the raw JSON content
+    print(f"Raw JSON content: {json_result}")
+
+    # Ensure the JSON content is properly loaded
+    try:
+        table_definition = json.loads(json_result)
+    except json.JSONDecodeError as e:
+        return f"Error decoding JSON: {str(e)}\nRaw JSON content: {json_result}"
+    
+    # Debug: Inspect the table definition
+    print(f"Table definition: {table_definition}")
+    
+    # Fetch the Jinja2 template from the stage
+    template_stage_query = "SELECT $1 FROM @template_stage/create_table_template.jinja2"
+    template_result = session.sql(template_stage_query).collect()[0][0]
+    template = Template(template_result)
+    
+    # Debug: Inspect the template content
+    print(f"Template content: {template_result}")
+    
+    # Render the template with the JSON data
+    create_table_sql = template.render(
+        database=table_definition['database'],
+        schema=table_definition['schema'],
+        table_name=table_definition['table_name'],
+        columns=table_definition['columns']
+    )
+    
+    # Debug: Inspect the generated SQL
+    print(f"Generated SQL: {create_table_sql}")
+
+    #return create_table_sql
+    
+    # Execute the CREATE TABLE statement
+    session.sql(create_table_sql).collect()
+    
+    return f"Table {table_definition['schema']}.{table_definition['table_name']} created successfully."
+
+$$;
+
+
+--call procedure 
+call JINJA2TEST_DB.MYSCHEMA1.generate_create_table_script('mynewtable1.json');
+call JINJA2TEST_DB.MYSCHEMA1.generate_create_table_script('newTestTable.json');
